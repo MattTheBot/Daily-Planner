@@ -1,17 +1,15 @@
 /* ═══════════════════════════════════════════════════════════════
    EDIT THIS BLOCK — everything else works as-is
    ═══════════════════════════════════════════════════════════════ */
-const CONFIG = {
-  firebase: {
-    apiKey:            "PASTE_FIREBASE_API_KEY",
-    authDomain:        "PASTE_PROJECT.firebaseapp.com",
-    projectId:         "PASTE_PROJECT_ID",
-    storageBucket:     "PASTE_PROJECT.appspot.com",
-    messagingSenderId: "PASTE_SENDER_ID",
-    appId:             "PASTE_APP_ID"
-  },
-  defaultModel: "gemini-2.0-flash"
+const firebaseConfig = {
+  apiKey: "AIzaSyBFj95AmxGCY01nBsQCnCD3kYhxUh6lklA",
+  authDomain: "daily-planner-db712.firebaseapp.com",
+  projectId: "daily-planner-db712",
+  storageBucket: "daily-planner-db712.firebasestorage.app",
+  messagingSenderId: "894061657165",
+  appId: "1:894061657165:web:b73655157c89fce5c9f004"
 };
+
 /* ═══════════════════════════════════════════════════════════════ */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
