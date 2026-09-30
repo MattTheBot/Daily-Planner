@@ -91,6 +91,7 @@ textarea{resize:vertical;font-family:inherit}
 
 /* ============ APP SHELL ============ */
 #app{min-height:100dvh}
+#app[hidden]{display:none !important}
 
 body.nav-top #app{display:grid;grid-template-rows:auto 1fr}
 body.nav-top #nav{
