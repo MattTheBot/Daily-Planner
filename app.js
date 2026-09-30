@@ -1,15 +1,17 @@
 /* ═══════════════════════════════════════════════════════════════
-   EDIT THIS BLOCK — everything else works as-is
+   CONFIG — already filled in with your Firebase project values
    ═══════════════════════════════════════════════════════════════ */
-const firebaseConfig = {
-  apiKey: "AIzaSyBFj95AmxGCY01nBsQCnCD3kYhxUh6lklA",
-  authDomain: "daily-planner-db712.firebaseapp.com",
-  projectId: "daily-planner-db712",
-  storageBucket: "daily-planner-db712.firebasestorage.app",
-  messagingSenderId: "894061657165",
-  appId: "1:894061657165:web:b73655157c89fce5c9f004"
+const CONFIG = {
+  firebase: {
+    apiKey: "AIzaSyBFj95AmxGCY01nBsQCnCD3kYhxUh6lklA",
+    authDomain: "daily-planner-db712.firebaseapp.com",
+    projectId: "daily-planner-db712",
+    storageBucket: "daily-planner-db712.firebasestorage.app",
+    messagingSenderId: "894061657165",
+    appId: "1:894061657165:web:b73655157c89fce5c9f004"
+  },
+  defaultModel: "gemini-2.0-flash"
 };
-
 /* ═══════════════════════════════════════════════════════════════ */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -72,12 +74,8 @@ function shortDate(iso) {
   return d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
 
-/* ── academic calendar ─────────────────────────────────────────
-   Weeks are 5 school days (Mon–Fri by default). The Nth school day
-   after termStart is Week ceil(N/perWeek), Day ((N-1) mod perWeek)+1.
-   Weekends and dates inside a configured break are skipped.
-   ──────────────────────────────────────────────────────────── */
-const DEFAULT_SCHOOL_WEEKDAYS = [1, 2, 3, 4, 5]; // Mon..Fri
+/* ── academic calendar (school days only: Mon–Fri, breaks skipped) ─ */
+const DEFAULT_SCHOOL_WEEKDAYS = [1, 2, 3, 4, 5];
 
 function academicNow() {
   const today = todayISO();
@@ -114,18 +112,16 @@ function academicNow() {
   return out;
 }
 
-/* Convert "Week N Day M" to a calendar date (used for sanity, not critical) */
 function weekDayToISO(weekN, dayM) {
   const p = state.profile;
   if (!p.termStart) return "";
   const perWeek = Math.max(1, Number(p.schoolDays) || 5);
-  const target = (weekN - 1) * perWeek + dayM;      // Nth school day
+  const target = (weekN - 1) * perWeek + dayM;
   const breaks = p.breaks || [];
   const schoolWeekdays = DEFAULT_SCHOOL_WEEKDAYS;
 
   let n = 0;
   let d = p.termStart;
-  // Hard cap to avoid runaway loops
   for (let guard = 0; guard < 3000; guard++) {
     const dow = new Date(d + "T00:00:00").getDay();
     const isSchoolDay = schoolWeekdays.includes(dow);
@@ -465,7 +461,7 @@ $("#btnSaveManual").onclick = async () => {
 };
 
 /* ═══════════════════ RENDER: TIMEBOX ═══════════════════ */
-const HOURS = Array.from({ length: 18 }, (_, i) => i + 6); // 06:00 – 23:00
+const HOURS = Array.from({ length: 18 }, (_, i) => i + 6);
 
 function renderTimebox() {
   $("#tbDate").value = state.tbDate;
