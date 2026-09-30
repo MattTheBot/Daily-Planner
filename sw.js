@@ -39,7 +39,10 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(req.url);
 
-  if (url.hostname === "generativelanguage.googleapis.com") return;
+  // Never cache AI provider endpoints
+  if (url.hostname === "api.z.ai" || url.hostname === "api.groq.com") return;
+
+  // Never cache Firebase backends
   if (url.hostname.endsWith("googleapis.com") && url.hostname !== "www.gstatic.com") {
     if (url.hostname.includes("firestore") ||
         url.hostname.includes("identitytoolkit") ||
