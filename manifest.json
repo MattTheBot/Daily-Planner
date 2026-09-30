@@ -1,0 +1,19 @@
+{
+  "name": "School Planner",
+  "short_name": "Planner",
+  "description": "AI-powered school planner with assignment tracking and time-boxing.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%235C9EAD'/%3E%3Cpath d='M144 168h224v36H144zM144 244h224v36H144zM144 320h144v36H144z' fill='%23ffffff'/%3E%3C/svg%3E",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
