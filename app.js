@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   CONFIG — already filled in with your Firebase project values
+   CONFIG — Firebase values already filled in
    ═══════════════════════════════════════════════════════════════ */
 const CONFIG = {
   firebase: {
@@ -10,7 +10,23 @@ const CONFIG = {
     messagingSenderId: "894061657165",
     appId: "1:894061657165:web:b73655157c89fce5c9f004"
   },
-  defaultModel: "gemini-2.0-flash"
+  defaultProvider: "zai"
+};
+
+/* Provider registry — all OpenAI-compatible, all free tier */
+const PROVIDERS = {
+  zai: {
+    name: "Z.ai (GLM)",
+    baseUrl: "https://api.z.ai/api/paas/v4/chat/completions",
+    defaultModel: "glm-4.7-flash",
+    models: ["glm-4.7-flash", "glm-4.5-flash"]
+  },
+  groq: {
+    name: "Groq (Llama)",
+    baseUrl: "https://api.groq.com/openai/v1/chat/completions",
+    defaultModel: "llama-3.3-70b-versatile",
+    models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "meta-llama/llama-4-scout-17b-16e-instruct"]
+  }
 };
 /* ═══════════════════════════════════════════════════════════════ */
 
@@ -18,8 +34,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import {
   getAuth, onAuthStateChanged, createUserWithEmailAndPassword,
   signInWithEmailAndPassword, signInWithPopup, signInWithRedirect,
-  getRedirectResult, GoogleAuthProvider, signOut, setPersistence,
-  browserLocalPersistence
+  getRedirectResult, GoogleAuthProvider, signOut
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
@@ -28,9 +43,12 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 /* ── init ─────────────────────────────────────────────────────── */
+/* NOTE: setPersistence is deliberately NOT called. browserLocalPersistence
+   is already the default for getAuth(), and calling setPersistence on every
+   boot clears any existing session — that was the "signed out after closing"
+   bug. Removing the call is the documented fix. */
 const fbApp = initializeApp(CONFIG.firebase);
 const auth  = getAuth(fbApp);
-setPersistence(auth, browserLocalPersistence).catch(() => {});
 
 const db = initializeFirestore(fbApp, {
   localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
@@ -91,7 +109,6 @@ function academicNow() {
 
   if (!p.termStart || today < p.termStart) return out;
 
-  const schoolWeekdays = DEFAULT_SCHOOL_WEEKDAYS;
   const perWeek = Math.max(1, Number(p.schoolDays) || 5);
   const breaks = p.breaks || [];
 
@@ -99,7 +116,7 @@ function academicNow() {
   let d = p.termStart;
   while (d <= today) {
     const dow = new Date(d + "T00:00:00").getDay();
-    const isSchoolDay = schoolWeekdays.includes(dow);
+    const isSchoolDay = DEFAULT_SCHOOL_WEEKDAYS.includes(dow);
     const inBreak = breaks.some(b => b.start && b.end && d >= b.start && d <= b.end);
     if (isSchoolDay && !inBreak) n++;
     if (d === today) break;
@@ -110,29 +127,6 @@ function academicNow() {
   out.week = Math.ceil(n / perWeek);
   out.day  = ((n - 1) % perWeek) + 1;
   return out;
-}
-
-function weekDayToISO(weekN, dayM) {
-  const p = state.profile;
-  if (!p.termStart) return "";
-  const perWeek = Math.max(1, Number(p.schoolDays) || 5);
-  const target = (weekN - 1) * perWeek + dayM;
-  const breaks = p.breaks || [];
-  const schoolWeekdays = DEFAULT_SCHOOL_WEEKDAYS;
-
-  let n = 0;
-  let d = p.termStart;
-  for (let guard = 0; guard < 3000; guard++) {
-    const dow = new Date(d + "T00:00:00").getDay();
-    const isSchoolDay = schoolWeekdays.includes(dow);
-    const inBreak = breaks.some(b => b.start && b.end && d >= b.start && d <= b.end);
-    if (isSchoolDay && !inBreak) {
-      n++;
-      if (n === target) return d;
-    }
-    d = shiftISO(d, 1);
-  }
-  return "";
 }
 
 function bucketOf(a) {
@@ -221,8 +215,9 @@ onAuthStateChanged(auth, async (user) => {
       termStart: "",
       schoolDays: 5,
       navPosition: "top",
+      provider: CONFIG.defaultProvider,
       apiKey: "",
-      model: CONFIG.defaultModel,
+      model: PROVIDERS[CONFIG.defaultProvider].defaultModel,
       breaks: [],
       createdAt: serverTimestamp()
     });
@@ -527,17 +522,31 @@ $("#tbDate").onchange = (e) => { state.tbDate = e.target.value; renderTimebox();
 $("#tbPrev").onclick  = () => { state.tbDate = shiftISO(state.tbDate, -1); renderTimebox(); };
 $("#tbNext").onclick  = () => { state.tbDate = shiftISO(state.tbDate,  1); renderTimebox(); };
 $("#tbToday").onclick = () => { state.tbDate = todayISO(); renderTimebox(); };
+$("#tbTomorrow").onclick = () => { state.tbDate = shiftISO(todayISO(), 1); renderTimebox(); };
 
 /* ═══════════════════ RENDER: SETTINGS ═══════════════════ */
+function populateModels(providerKey, selected) {
+  const prov = PROVIDERS[providerKey] || PROVIDERS[CONFIG.defaultProvider];
+  const sel = $("#setModel");
+  sel.innerHTML = prov.models.map(m => `<option value="${m}">${m}</option>`).join("");
+  sel.value = (selected && prov.models.includes(selected)) ? selected : prov.defaultModel;
+}
+
 function renderSettings() {
   const p = state.profile;
+  $("#setProvider").value  = p.provider || CONFIG.defaultProvider;
   $("#setApiKey").value    = p.apiKey || "";
-  $("#setModel").value     = p.model || CONFIG.defaultModel;
+  populateModels(p.provider || CONFIG.defaultProvider, p.model);
   $("#setTermStart").value = p.termStart || "";
   $("#setSchoolDays").value = p.schoolDays || 5;
   $("#setNavPos").value    = p.navPosition || "top";
   renderBreaks();
 }
+
+$("#setProvider").onchange = () => {
+  const key = $("#setProvider").value;
+  populateModels(key, null);
+};
 
 function renderBreaks() {
   const list = state.profile.breaks || [];
@@ -580,9 +589,9 @@ $("#btnAddBreak").onclick = () => {
 };
 
 $("#btnSaveSettings").onclick = async () => {
-  const apiKey = $("#setApiKey").value.trim();
   await setDoc(doc(db, "users", state.user.uid), {
-    apiKey,
+    provider: $("#setProvider").value,
+    apiKey: $("#setApiKey").value.trim(),
     model: $("#setModel").value,
     termStart: $("#setTermStart").value || "",
     schoolDays: Number($("#setSchoolDays").value) || 5,
@@ -597,70 +606,51 @@ $("#btnTestKey").onclick = async () => {
   const st = $("#keyStatus");
   st.textContent = "Testing…"; st.className = "status";
   try {
-    await callGemini("Reply with exactly: OK", { apiKey: $("#setApiKey").value.trim(), model: $("#setModel").value, json: false });
+    await callAI("Reply with exactly: OK", { json: false });
     st.textContent = "Connection works."; st.className = "status ok";
   } catch (e) {
     st.textContent = e.message; st.className = "status err";
   }
 };
 
-/* ═══════════════════ AI: GEMINI ═══════════════════ */
-const RESPONSE_SCHEMA = {
-  type: "OBJECT",
-  properties: {
-    assignments: {
-      type: "ARRAY",
-      items: {
-        type: "OBJECT",
-        properties: {
-          title:            { type: "STRING" },
-          subject:          { type: "STRING" },
-          due:              { type: "STRING", description: "YYYY-MM-DD local date, or empty string if unknown" },
-          estimatedMinutes: { type: "INTEGER" },
-          notes:            { type: "STRING" },
-          schedule: {
-            type: "OBJECT",
-            properties: {
-              date: { type: "STRING", description: "YYYY-MM-DD" },
-              hour: { type: "INTEGER", description: "0-23" }
-            }
-          }
-        },
-        required: ["title"]
-      }
-    }
-  },
-  required: ["assignments"]
-};
+/* ═══════════════════ AI (OpenAI-compatible) ═══════════════════ */
+async function callAI(prompt, { json = true, systemText = "" } = {}) {
+  const p = state.profile;
+  const providerKey = p.provider || CONFIG.defaultProvider;
+  const prov = PROVIDERS[providerKey] || PROVIDERS[CONFIG.defaultProvider];
+  const apiKey = (p.apiKey || "").trim();
+  const model  = p.model || prov.defaultModel;
 
-async function callGemini(prompt, { apiKey, model, json = true, systemText = "" } = {}) {
   if (!apiKey) throw new Error("No API key set — open Settings.");
   if (!navigator.onLine) throw new Error("AI temporarily unavailable offline.");
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-  const body = {
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    generationConfig: { temperature: 0.2 }
-  };
-  if (systemText) body.systemInstruction = { parts: [{ text: systemText }] };
-  if (json) {
-    body.generationConfig.responseMimeType = "application/json";
-    body.generationConfig.responseSchema = RESPONSE_SCHEMA;
-  }
+  const messages = [];
+  if (systemText) messages.push({ role: "system", content: systemText });
+  messages.push({ role: "user", content: prompt });
 
-  const res = await fetch(url, {
+  const body = { model, messages, temperature: 0.2 };
+  if (json) body.response_format = { type: "json_object" };
+
+  const res = await fetch(prov.baseUrl, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`
+    },
     body: JSON.stringify(body)
   });
+
   if (!res.ok) {
     const txt = await res.text().catch(() => "");
-    throw new Error(`API ${res.status}: ${txt.slice(0, 160)}`);
+    throw new Error(`API ${res.status}: ${txt.slice(0, 180)}`);
   }
   const data = await res.json();
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  const text = data?.choices?.[0]?.message?.content;
   if (!text) throw new Error("Empty AI response.");
-  return json ? JSON.parse(text) : text;
+  if (!json) return text;
+
+  const cleaned = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+  return JSON.parse(cleaned);
 }
 
 function buildSystemPrompt() {
@@ -675,26 +665,24 @@ function buildSystemPrompt() {
   const perWeek = Math.max(1, Number(p.schoolDays) || 5);
   const termStart = p.termStart || "(not set)";
 
-  return `You are an assignment parser for a school planner.
+  return `You are an assignment parser for a school planner. You always return valid JSON.
 
 CURRENT CONTEXT (authoritative — never contradict these):
   Today's date: ${info.today} (${dow})
   Local time: ${new Date().toLocaleTimeString()}
   Academic position: ${info.week ? `Week ${info.week}, Day ${info.day}` : "outside term"}
   Term started: ${termStart} — this date is Week 1 Day 1
-  School week structure: ${perWeek} school days per week, Monday through Friday only. Weekends are skipped entirely.
+  School week structure: ${perWeek} school days per week, Monday through Friday only. Weekends are skipped.
 ${info.breakName ? `  CURRENTLY ON BREAK: ${info.breakName}` : ""}
 
-KNOWN BREAKS (school days that fall inside these ranges do NOT advance the week/day tally):
+KNOWN BREAKS (school days inside these ranges do NOT advance the week/day tally):
 ${breakLines}
 
-HOW TO RESOLVE "WEEK N DAY M" REFERENCES IN THE USER'S TEXT:
+HOW TO RESOLVE "WEEK N DAY M" REFERENCES:
   Walk forward in calendar days from ${termStart}, counting only school days
   (Mon–Fri, skipping weekends and any date inside a listed break).
   The 1st school day is Week 1 Day 1. The ${perWeek + 1}th school day is Week 2 Day 1.
-  Convert every "week N day M" phrase the text mentions into the correct YYYY-MM-DD date
-  and put that date in "due". If a task has no explicit date and no week/day reference,
-  leave "due" as an empty string — do not guess.
+  Convert every "week N day M" phrase into the correct YYYY-MM-DD date.
 
 RULES:
 1. Extract every distinct assignment or task from the user's text.
@@ -702,9 +690,24 @@ RULES:
    against the context above. Always output YYYY-MM-DD.
 3. If a date is ambiguous or absent, output an empty string for "due". NEVER invent a date.
 4. "subject" should be the class name only (e.g. "Chemistry"), not a description.
-5. "estimatedMinutes" is your best estimate of working time; use 0 if truly unknown.
+5. "estimatedMinutes" is your best estimate of working time; use 0 if unknown.
 6. If the text says when the student plans to work on something, fill in "schedule".
-7. Titles should be short and actionable.`;
+7. Titles should be short and actionable.
+
+OUTPUT FORMAT — return a single JSON object with exactly one key:
+{
+  "assignments": [
+    {
+      "title": "string (required)",
+      "subject": "string, short class name",
+      "due": "YYYY-MM-DD or empty string",
+      "estimatedMinutes": 0,
+      "notes": "string",
+      "schedule": { "date": "YYYY-MM-DD", "hour": 0 }
+    }
+  ]
+}
+"schedule" must be null if the user gave no scheduling info.`;
 }
 
 $("#btnParse").onclick = async () => {
@@ -712,14 +715,11 @@ $("#btnParse").onclick = async () => {
   const st = $("#parseStatus");
   if (!text) { st.textContent = "Paste some text first."; st.className = "status err"; return; }
 
-  const apiKey = state.profile.apiKey;
-  const model  = state.profile.model || CONFIG.defaultModel;
-
   $("#btnParse").disabled = true;
   st.textContent = "Thinking…"; st.className = "status";
 
   try {
-    const out = await callGemini(text, { apiKey, model, systemText: buildSystemPrompt() });
+    const out = await callAI(text, { systemText: buildSystemPrompt() });
     state.parsed = (out.assignments || []).map(a => ({
       title: a.title || "",
       subject: a.subject || "",
