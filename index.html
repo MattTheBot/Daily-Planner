@@ -198,8 +198,9 @@
         <p class="muted small">Your key is stored in your own Firestore document and is only readable by your account. It never leaves your device except to call the provider directly.</p>
         <label class="field">Provider
           <select id="setProvider">
-            <option value="zai">Z.ai — GLM Flash (free, ~1000 req/day, no card)</option>
-            <option value="groq">Groq — Llama (free, very fast)</option>
+            <option value="openrouter">OpenRouter — free models (CORS-enabled)</option>
+            <option value="zai">Z.ai — GLM Flash (CORS-blocked in browsers)</option>
+            <option value="groq">Groq — Llama (CORS-blocked in browsers)</option>
           </select>
         </label>
         <label class="field">API key
@@ -210,8 +211,8 @@
         </label>
         <div class="row"><button id="btnTestKey" class="btn">Test connection</button><span id="keyStatus" class="status"></span></div>
         <p class="muted small" style="margin-top:14px">
-          <strong>Z.ai:</strong> sign up at z.ai → API Keys → create key. No credit card.<br>
-          <strong>Groq:</strong> sign up at console.groq.com → API Keys → create key. No credit card.
+          <strong>OpenRouter (recommended):</strong> openrouter.ai → Keys → create key. Free tier: 50 requests/day, no card.<br>
+          <strong>Z.ai and Groq:</strong> listed only for completeness — both refuse browser requests, so they will not work here.
         </p>
       </div>
 
