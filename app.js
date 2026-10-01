@@ -617,7 +617,7 @@ $("#btnTestKey").onclick = async () => {
   const providerKey = $("#setProvider").value;
   const apiKey = $("#setApiKey").value.trim();
   const model  = $("#setModel").value;
-  const prov   = PROVIDERS[providerKey];
+  const prov = PROVIDERS[providerKey] || PROVIDERS[CONFIG.defaultProvider];
 
   if (!apiKey) {
     st.textContent = "No API key entered.";
