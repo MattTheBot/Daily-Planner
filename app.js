@@ -13,7 +13,7 @@ const CONFIG = {
   defaultProvider: "zai"
 };
 
-/* Provider registry — all OpenAI-compatible, all free tier */
+/* Provider registry — all OpenAI-compatible */
 const PROVIDERS = {
   zai: {
     name: "Z.ai (GLM)",
@@ -602,14 +602,50 @@ $("#btnSaveSettings").onclick = async () => {
   renderHome();
 };
 
+/* Test button reads DIRECTLY from the input field, not from saved state,
+   so you don't have to click Save first. */
 $("#btnTestKey").onclick = async () => {
   const st = $("#keyStatus");
   st.textContent = "Testing…"; st.className = "status";
+
+  const providerKey = $("#setProvider").value;
+  const apiKey = $("#setApiKey").value.trim();
+  const model  = $("#setModel").value;
+  const prov   = PROVIDERS[providerKey];
+
+  if (!apiKey) {
+    st.textContent = "No API key entered.";
+    st.className = "status err";
+    return;
+  }
+  if (!navigator.onLine) {
+    st.textContent = "You're offline.";
+    st.className = "status err";
+    return;
+  }
+
   try {
-    await callAI("Reply with exactly: OK", { json: false });
-    st.textContent = "Connection works."; st.className = "status ok";
+    const res = await fetch(prov.baseUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept-Language": "en-US,en",
+        "Authorization": `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: "user", content: "Say OK" }]
+      })
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(`HTTP ${res.status} — ${txt.slice(0, 180)}`);
+    }
+    st.textContent = "Connection works.";
+    st.className = "status ok";
   } catch (e) {
-    st.textContent = e.message; st.className = "status err";
+    st.textContent = e.message || "Request failed — see Console for details.";
+    st.className = "status err";
   }
 };
 
@@ -635,6 +671,7 @@ async function callAI(prompt, { json = true, systemText = "" } = {}) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "Accept-Language": "en-US,en",
       "Authorization": `Bearer ${apiKey}`
     },
     body: JSON.stringify(body)
