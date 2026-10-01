@@ -1,4 +1,4 @@
-const CACHE = "planner-v6";
+const CACHE = "planner-v7";
 
 const SHELL = [
   "./",
