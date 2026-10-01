@@ -10,22 +10,34 @@ const CONFIG = {
     messagingSenderId: "894061657165",
     appId: "1:894061657165:web:b73655157c89fce5c9f004"
   },
-  defaultProvider: "zai"
+  defaultProvider: "openrouter"
 };
 
 /* Provider registry — all OpenAI-compatible */
 const PROVIDERS = {
+  openrouter: {
+    name: "OpenRouter (free models, CORS-enabled)",
+    baseUrl: "https://openrouter.ai/api/v1/chat/completions",
+    defaultModel: "google/gemini-2.0-flash-exp:free",
+    models: [
+      "openrouter/free",
+      "google/gemini-2.0-flash-exp:free",
+      "meta-llama/llama-3.3-70b-instruct:free",
+      "qwen/qwen-2.5-72b-instruct:free",
+      "deepseek/deepseek-r1:free"
+    ]
+  },
   zai: {
-    name: "Z.ai (GLM)",
+    name: "Z.ai (GLM) — CORS blocked in browser",
     baseUrl: "https://api.z.ai/api/paas/v4/chat/completions",
     defaultModel: "glm-4.7-flash",
     models: ["glm-4.7-flash", "glm-4.5-flash"]
   },
   groq: {
-    name: "Groq (Llama)",
+    name: "Groq (Llama) — CORS blocked in browser",
     baseUrl: "https://api.groq.com/openai/v1/chat/completions",
     defaultModel: "llama-3.3-70b-versatile",
-    models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "meta-llama/llama-4-scout-17b-16e-instruct"]
+    models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
   }
 };
 /* ═══════════════════════════════════════════════════════════════ */
@@ -43,10 +55,6 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 /* ── init ─────────────────────────────────────────────────────── */
-/* NOTE: setPersistence is deliberately NOT called. browserLocalPersistence
-   is already the default for getAuth(), and calling setPersistence on every
-   boot clears any existing session — that was the "signed out after closing"
-   bug. Removing the call is the documented fix. */
 const fbApp = initializeApp(CONFIG.firebase);
 const auth  = getAuth(fbApp);
 
@@ -602,8 +610,6 @@ $("#btnSaveSettings").onclick = async () => {
   renderHome();
 };
 
-/* Test button reads DIRECTLY from the input field, not from saved state,
-   so you don't have to click Save first. */
 $("#btnTestKey").onclick = async () => {
   const st = $("#keyStatus");
   st.textContent = "Testing…"; st.className = "status";
@@ -630,7 +636,9 @@ $("#btnTestKey").onclick = async () => {
       headers: {
         "Content-Type": "application/json",
         "Accept-Language": "en-US,en",
-        "Authorization": `Bearer ${apiKey}`
+        "Authorization": `Bearer ${apiKey}`,
+        "HTTP-Referer": window.location.origin,
+        "X-Title": "School Planner"
       },
       body: JSON.stringify({
         model,
@@ -672,7 +680,9 @@ async function callAI(prompt, { json = true, systemText = "" } = {}) {
     headers: {
       "Content-Type": "application/json",
       "Accept-Language": "en-US,en",
-      "Authorization": `Bearer ${apiKey}`
+      "Authorization": `Bearer ${apiKey}`,
+      "HTTP-Referer": window.location.origin,
+      "X-Title": "School Planner"
     },
     body: JSON.stringify(body)
   });
